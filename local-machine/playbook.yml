@@ -1,0 +1,129 @@
+---
+- name: Setup development environment on localhost
+  hosts: localhost
+  connection: local
+  become: true
+
+  vars:
+    common_packages:
+      - git
+      - zsh
+      - curl
+      - wget
+      - htop
+      - net-tools
+      - tmux
+      - vim
+      - python3
+      - python3-pip
+      - docker.io
+      - docker-compose
+      - openvpn
+      - ufw
+      - nmap
+      - iperf
+
+  tasks:
+    # Install common packages on Ubuntu
+    - name: Install common packages on Ubuntu
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ common_packages }}"
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    # Install Node.js and npm
+    - name: Install Node.js and npm
+      apt:
+        name: nodejs
+        state: present
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    - name: Install npm
+      apt:
+        name: npm
+        state: present
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    # Install Visual Studio Code (Ubuntu example)
+    - name: Install Visual Studio Code
+      apt:
+        name: code
+        state: present
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    # Install Docker and enable the Docker service
+    - name: Ensure Docker is installed
+      apt:
+        name: docker.io
+        state: present
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    - name: Add user to Docker group
+      user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: yes
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    - name: Enable and start Docker service
+      service:
+        name: docker
+        enabled: yes
+        state: started
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    # Install Oh My Zsh
+    - name: Install Oh My Zsh
+      shell: |
+        if [ ! -d "$HOME/.oh-my-zsh" ]; then
+          sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)";
+        fi
+      args:
+        executable: /bin/zsh
+
+    # Install Powerlevel10k Zsh theme
+    - name: Install Powerlevel10k Zsh theme
+      git:
+        repo: https://github.com/romkatv/powerlevel10k.git
+        dest: ~/.oh-my-zsh/custom/themes/powerlevel10k
+      notify:
+        - Update .zshrc for Powerlevel10k
+
+    # Update .zshrc to use Powerlevel10k
+    - name: Update .zshrc for Powerlevel10k
+      lineinfile:
+        path: ~/.zshrc
+        regexp: '^ZSH_THEME=.*'
+        line: 'ZSH_THEME="powerlevel10k/powerlevel10k"'
+        state: present
+
+    # Install Python virtualenv
+    - name: Install Python virtualenv
+      pip:
+        name: virtualenv
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    # Install nvm for Node.js version management
+    - name: Install nvm
+      shell: |
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+      args:
+        executable: /bin/bash
+
+    # Setup ufw firewall
+    - name: Allow SSH through UFW
+      ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+
+  handlers:
+    - name: Update .zshrc for Powerlevel10k
+      shell: source ~/.zshrc
+      args:
+        executable: /bin/zsh
