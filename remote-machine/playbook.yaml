@@ -74,13 +74,38 @@
       args:
         executable: /bin/zsh
 
-    # Install Powerlevel10k Zsh theme
-    - name: Install Powerlevel10k Zsh theme
+     # Set Zsh as default shell
+    - name: Set Zsh as the default shell for the user
+      user:
+        name: "{{ ansible_user_id }}"  # or replace with specific username
+        shell: /usr/bin/zsh
+      become: true
+
+    # Clone Powerlevel10k theme
+    - name: Clone Powerlevel10k theme
       git:
         repo: https://github.com/romkatv/powerlevel10k.git
-        dest: ~/.oh-my-zsh/custom/themes/powerlevel10k
-      notify:
-        - Update .zshrc for Powerlevel10k
+        dest: /root/.oh-my-zsh/custom/themes/powerlevel10k
+        depth: 1
+      retries: 3
+      delay: 5
+      become: true
+
+    # Update .zshrc to set Powerlevel10k as the theme
+    - name: Set Powerlevel10k as default Zsh theme
+      lineinfile:
+        path: /root/.zshrc
+        regexp: '^ZSH_THEME=.*'
+        line: 'ZSH_THEME="powerlevel10k/powerlevel10k"'
+        create: yes
+      become: true
+
+    # Source the .zshrc file after updating it
+    - name: Source .zshrc for Zsh configuration
+      shell: source /root/.zshrc
+      args:
+        executable: /bin/zsh
+      become: true
 
     # Install Python virtualenv
     - name: Install Python virtualenv
@@ -98,9 +123,3 @@
     - name: Enable UFW
       ufw:
         state: enabled
-
-  handlers:
-    - name: Update .zshrc for Powerlevel10k
-      shell: source ~/.zshrc
-      args:
-        executable: /bin/zsh

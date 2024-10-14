@@ -1,4 +1,4 @@
-ansible-playbook -i inventory.yml playbook.yml
+ansible-playbook -i inventory.yaml playbook.yaml
 
 ### Generating ssh key to test with remote machine authentication
 ```bash
