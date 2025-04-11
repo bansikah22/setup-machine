@@ -172,4 +172,4 @@ Edit `macos-setup/playbook.yml` to:
 
 ## License
 
-MIT License - see LICENSE file
+MIT License - see [LICENSE](./LICENSE) file
