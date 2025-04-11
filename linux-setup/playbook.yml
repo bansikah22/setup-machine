@@ -1,0 +1,168 @@
+---
+- name: Setup local Linux development environment
+  hosts: localhost
+  connection: local
+  become: true
+
+  vars:
+    common_packages:
+      - git
+      - zsh
+      - curl
+      - wget
+      - htop
+      - tmux
+      - vim
+      - python3
+      - python3-pip
+
+  tasks:
+    # Update package managers
+    - name: Update apt cache (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Update dnf cache (Fedora)
+      dnf:
+        update_cache: yes
+      when: ansible_facts['distribution'] == 'Fedora'
+
+    # Install common packages
+    - name: Install common packages (Debian/Ubuntu)
+      apt:
+        name: "{{ common_packages }}"
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install common packages (Fedora)
+      dnf:
+        name: "{{ common_packages }}"
+        state: present
+      when: ansible_facts['distribution'] == 'Fedora'
+
+    # Install Node.js and npm
+    - name: Install Node.js and npm (Debian/Ubuntu)
+      apt:
+        name: 
+          - nodejs
+          - npm
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install Node.js and npm (Fedora)
+      dnf:
+        name:
+          - nodejs
+          - npm
+        state: present
+      when: ansible_facts['distribution'] == 'Fedora'
+
+    # Install and configure Docker
+    - name: Install Docker (Debian/Ubuntu)
+      apt:
+        name: docker.io
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install Docker (Fedora)
+      dnf:
+        name: docker
+        state: present
+      when: ansible_facts['distribution'] == 'Fedora'
+
+    - name: Add user to Docker group
+      user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: yes
+
+    - name: Enable and start Docker service
+      service:
+        name: docker
+        enabled: yes
+        state: started
+
+    # Install Oh My Zsh for current user
+    - name: Check if Oh My Zsh is installed
+      stat:
+        path: "{{ ansible_user_dir }}/.oh-my-zsh"
+      register: oh_my_zsh_installed
+      become: false
+
+    - name: Install Oh My Zsh
+      shell: |
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+      args:
+        creates: "{{ ansible_user_dir }}/.oh-my-zsh"
+      become: false
+      when: not oh_my_zsh_installed.stat.exists
+
+    # Set Zsh as default shell
+    - name: Set Zsh as the default shell
+      user:
+        name: "{{ ansible_user_id }}"
+        shell: /bin/zsh
+
+    # Install Powerlevel10k theme
+    - name: Clone Powerlevel10k theme
+      git:
+        repo: https://github.com/romkatv/powerlevel10k.git
+        dest: "{{ ansible_user_dir }}/.oh-my-zsh/custom/themes/powerlevel10k"
+        depth: 1
+      become: false
+
+    # Configure Zsh theme
+    - name: Set Powerlevel10k as default Zsh theme
+      lineinfile:
+        path: "{{ ansible_user_dir }}/.zshrc"
+        regexp: '^ZSH_THEME=.*'
+        line: 'ZSH_THEME="powerlevel10k/powerlevel10k"'
+        create: yes
+      become: false
+
+    # Install Python virtualenv
+    - name: Install virtualenv via pip
+      pip:
+        name: virtualenv
+        state: present
+      become: false
+
+    # Basic security setup
+    - name: Install UFW (Debian/Ubuntu)
+      apt:
+        name: ufw
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install firewalld (Fedora)
+      dnf:
+        name: firewalld
+        state: present
+      when: ansible_facts['distribution'] == 'Fedora'
+
+    - name: Configure UFW (Debian/Ubuntu)
+      block:
+        - name: Allow SSH through UFW
+          ufw:
+            rule: allow
+            port: 22
+            proto: tcp
+        - name: Enable UFW
+          ufw:
+            state: enabled
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Configure firewalld (Fedora)
+      block:
+        - name: Start and enable firewalld
+          service:
+            name: firewalld
+            state: started
+            enabled: yes
+        - name: Allow SSH through firewalld
+          firewalld:
+            service: ssh
+            permanent: yes
+            state: enabled
+      when: ansible_facts['distribution'] == 'Fedora'

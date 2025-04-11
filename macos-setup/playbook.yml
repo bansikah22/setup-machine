@@ -1,0 +1,145 @@
+---
+- name: Setup development environment on macOS
+  hosts: all
+  become: false
+  gather_facts: true
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    homebrew_packages:
+      - git
+      - zsh
+      - curl
+      - wget
+      - htop
+      - tmux
+      - vim
+      - python3
+      - node  # This installs both Node.js and npm
+    homebrew_cask_packages:
+      - docker  # Docker Desktop for Mac
+      - visual-studio-code  # VS Code
+      - iterm2  # Better terminal emulator
+
+  tasks:
+    # Homebrew setup
+    - name: Check if Homebrew is installed
+      stat:
+        path: /opt/homebrew/bin/brew
+      register: homebrew_binary_m1
+      
+    - name: Check if Homebrew is installed (Intel Mac)
+      stat:
+        path: /usr/local/bin/brew
+      register: homebrew_binary_intel
+
+    - name: Set Homebrew install fact
+      set_fact:
+        homebrew_installed: "{{ homebrew_binary_m1.stat.exists or homebrew_binary_intel.stat.exists }}"
+
+    - name: Install Homebrew
+      shell: |
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      when: not homebrew_installed
+      environment:
+        NONINTERACTIVE: 1
+      register: brew_install
+      changed_when: brew_install.rc == 0
+
+    - name: Add Homebrew to PATH for M1 Mac
+      shell: |
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+      when: 
+        - not homebrew_installed
+        - homebrew_binary_m1.stat.exists
+
+    - name: Add Homebrew to PATH for Intel Mac
+      shell: |
+        echo 'eval "$(/usr/local/bin/brew shellenv)"' >> ~/.zprofile
+        eval "$(/usr/local/bin/brew shellenv)"
+      when: 
+        - not homebrew_installed
+        - homebrew_binary_intel.stat.exists
+
+    - name: Update Homebrew (with retry)
+      shell: brew update
+      register: brew_update
+      retries: 3
+      delay: 5
+      until: brew_update.rc == 0
+      ignore_errors: yes
+      changed_when: false
+
+    # Install packages
+    - name: Install common packages with Homebrew
+      community.general.homebrew:
+        name: "{{ homebrew_packages }}"
+        state: present
+        update_homebrew: no  # Skip updating again
+
+    - name: Install cask packages with Homebrew
+      community.general.homebrew_cask:
+        name: "{{ homebrew_cask_packages }}"
+        state: present
+        update_homebrew: no  # Skip updating again
+
+    # Oh My Zsh setup
+    - name: Check if Oh My Zsh is installed
+      stat:
+        path: ~/.oh-my-zsh
+      register: oh_my_zsh_installed
+
+    - name: Install Oh My Zsh
+      shell: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+      args:
+        creates: ~/.oh-my-zsh
+      when: not oh_my_zsh_installed.stat.exists
+
+    - name: Set Zsh as default shell
+      shell: chsh -s $(which zsh)
+      changed_when: false
+      when: ansible_user_shell != '/bin/zsh'
+
+    # Powerlevel10k theme
+    - name: Clone Powerlevel10k theme
+      git:
+        repo: https://github.com/romkatv/powerlevel10k.git
+        dest: ~/.oh-my-zsh/custom/themes/powerlevel10k
+        depth: 1
+
+    - name: Configure Powerlevel10k theme
+      lineinfile:
+        path: ~/.zshrc
+        regexp: '^ZSH_THEME='
+        line: 'ZSH_THEME="powerlevel10k/powerlevel10k"'
+        create: yes
+
+    # Python setup
+    - name: Install Python virtualenv
+      pip:
+        name: virtualenv
+        state: present
+        extra_args: --user
+
+    # macOS settings
+    - name: Configure macOS settings
+      shell: "{{ item }}"
+      loop:
+        # Show hidden files in Finder
+        - defaults write com.apple.finder AppleShowAllFiles YES
+        # Show path bar in Finder
+        - defaults write com.apple.finder ShowPathbar -bool true
+        # Show status bar in Finder
+        - defaults write com.apple.finder ShowStatusBar -bool true
+        # Enable key repeat (disable press-and-hold)
+        - defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
+        # Set fast key repeat rate
+        - defaults write NSGlobalDomain KeyRepeat -int 2
+        # Set short delay until repeat
+        - defaults write NSGlobalDomain InitialKeyRepeat -int 15
+      changed_when: false
+
+    - name: Restart Finder to apply changes
+      shell: killall Finder
+      changed_when: false 

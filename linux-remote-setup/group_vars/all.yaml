@@ -1,0 +1,38 @@
+---
+# Common packages to install across all remote machines
+common_packages:
+  - git
+  - zsh
+  - curl
+  - wget
+  - htop
+  - tmux
+  - vim
+  - python3
+  - python3-pip
+
+# Node.js packages
+node_packages:
+  - nodejs
+  - npm
+
+# Security settings
+security_settings:
+  ufw_enabled: true
+  ssh_settings:
+    permit_root_login: false
+    password_authentication: false
+    pubkey_authentication: true
+
+# Docker settings
+docker_settings:
+  install: true
+  users_to_add_to_group:
+    - "{{ ansible_user }}"
+
+# Shell configuration
+shell_settings:
+  default_shell: /bin/zsh
+  oh_my_zsh:
+    install: true
+    theme: "powerlevel10k/powerlevel10k"

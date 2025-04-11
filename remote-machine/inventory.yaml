@@ -1,6 +1,0 @@
-all:
-  hosts:
-    dev-machine:
-      ansible_host: 10.214.138.21
-      ansible_user: ubuntu
-
