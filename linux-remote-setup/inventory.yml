@@ -2,6 +2,7 @@
 # Remote Linux machines inventory
 all:
   hosts:
+    
     # Add your remote machines here
     # Example:
     # remote-machine:
@@ -14,3 +15,9 @@ all:
     #   ansible_port: 22  # Optional, defaults to 22
     
     # Add your servers below: 
+    ansible-test:
+      ansible_host: <your ip address>
+      ansible_user: ubuntu
+      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+      ansible_connection: ssh
+      ansible_ssh_pass: ubuntu
