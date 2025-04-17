@@ -61,6 +61,7 @@ brew install ansible
 ```
 
 ## Quick Start Guide
+You can check the getting started guide [here](docs/getting-started.md).
 
 ### 1. Setting Up Local Linux Machine
 ```bash
