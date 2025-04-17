@@ -14,76 +14,191 @@
       - vim
       - python3
       - python3-pip
+      - make
+      - gcc
+      - jq
+      - tree
+      - neofetch
+      - build-essential  # For compiling from source
+    # Distribution specific package names
+    debian_ubuntu_packages:
+      - ripgrep
+      - fd-find
+      - bat
+      - fzf
+      - default-jdk
+      - golang
+    ubuntu_specific_packages:
+      - software-properties-common
+      - pkg-config
+      - libssl-dev
+    debian_specific_packages:
+      - build-essential
+      - pkg-config
+      - libssl-dev
+    fedora_packages:
+      - ripgrep
+      - fd
+      - bat
+      - fzf
+      - java-latest-openjdk
+      - golang
+      - openssl-devel
+      - pkgconfig
+    node_packages:
+      ubuntu:
+        - nodejs
+        - npm
+      debian:
+        - nodejs
+        - npm
+      fedora:
+        - nodejs
+        - npm
+    docker_packages:
+      ubuntu: docker.io
+      debian: docker.io
+      fedora: docker-ce
+    python_packages:
+      - virtualenv
+      - flake8
+      - black
+      - pylint
 
   tasks:
-    # Update package managers
-    - name: Update apt cache (Debian/Ubuntu)
+    # Distribution detection
+    - name: Set distribution facts
+      set_fact:
+        is_ubuntu: "{{ ansible_distribution == 'Ubuntu' }}"
+        is_debian: "{{ ansible_distribution == 'Debian' }}"
+        is_fedora: "{{ ansible_distribution == 'Fedora' }}"
+
+    # Package manager updates
+    - name: Update apt cache (Ubuntu)
       apt:
         update_cache: yes
-      when: ansible_facts['os_family'] == 'Debian'
+      when: is_ubuntu
+
+    - name: Update apt cache (Debian)
+      apt:
+        update_cache: yes
+      when: is_debian
 
     - name: Update dnf cache (Fedora)
       dnf:
         update_cache: yes
-      when: ansible_facts['distribution'] == 'Fedora'
+      when: is_fedora
 
     # Install common packages
-    - name: Install common packages (Debian/Ubuntu)
+    - name: Install common packages (Ubuntu/Debian)
       apt:
         name: "{{ common_packages }}"
         state: present
-      when: ansible_facts['os_family'] == 'Debian'
+      when: is_ubuntu or is_debian
 
     - name: Install common packages (Fedora)
       dnf:
         name: "{{ common_packages }}"
         state: present
-      when: ansible_facts['distribution'] == 'Fedora'
+      when: is_fedora
+
+    # Install distribution-specific packages
+    - name: Install Ubuntu-specific packages
+      apt:
+        name: "{{ ubuntu_specific_packages }}"
+        state: present
+      when: is_ubuntu
+
+    - name: Install Debian-specific packages
+      apt:
+        name: "{{ debian_specific_packages }}"
+        state: present
+      when: is_debian
+
+    - name: Install Debian/Ubuntu shared packages
+      apt:
+        name: "{{ debian_ubuntu_packages }}"
+        state: present
+      when: is_ubuntu or is_debian
+
+    - name: Install Fedora-specific packages
+      dnf:
+        name: "{{ fedora_packages }}"
+        state: present
+      when: is_fedora
 
     # Install Node.js and npm
-    - name: Install Node.js and npm (Debian/Ubuntu)
+    - name: Install Node.js and npm (Ubuntu)
       apt:
-        name: "{{ node_packages }}"
+        name: "{{ node_packages.ubuntu }}"
         state: present
-      when: ansible_facts['os_family'] == 'Debian'
+      when: is_ubuntu
+
+    - name: Install Node.js and npm (Debian)
+      apt:
+        name: "{{ node_packages.debian }}"
+        state: present
+      when: is_debian
 
     - name: Install Node.js and npm (Fedora)
       dnf:
-        name: "{{ node_packages }}"
+        name: "{{ node_packages.fedora }}"
         state: present
-      when: ansible_facts['distribution'] == 'Fedora'
+      when: is_fedora
 
-    # Install and configure Docker
-    - name: Install Docker (Debian/Ubuntu)
-      apt:
-        name: docker.io
+    # Docker setup
+    - name: Add Docker GPG key (Ubuntu)
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
         state: present
-      when: 
-        - ansible_facts['os_family'] == 'Debian'
-        - docker_settings.install
+      when: is_ubuntu
+
+    - name: Add Docker repository (Ubuntu)
+      apt_repository:
+        repo: "deb [arch={{ ansible_architecture }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+      when: is_ubuntu
+
+    - name: Add Docker GPG key (Debian)
+      apt_key:
+        url: https://download.docker.com/linux/debian/gpg
+        state: present
+      when: is_debian
+
+    - name: Add Docker repository (Debian)
+      apt_repository:
+        repo: "deb [arch={{ ansible_architecture }}] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: present
+      when: is_debian
+
+    - name: Add Docker repository (Fedora)
+      dnf:
+        name: dnf-plugins-core
+        state: present
+      when: is_fedora
+
+    - name: Add Docker repository config (Fedora)
+      shell: |
+        dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+      when: is_fedora
+
+    - name: Install Docker (Ubuntu)
+      apt:
+        name: "{{ docker_packages.ubuntu }}"
+        state: present
+      when: is_ubuntu
+
+    - name: Install Docker (Debian)
+      apt:
+        name: "{{ docker_packages.debian }}"
+        state: present
+      when: is_debian
 
     - name: Install Docker (Fedora)
       dnf:
-        name: docker
+        name: "{{ docker_packages.fedora }}"
         state: present
-      when: 
-        - ansible_facts['distribution'] == 'Fedora'
-        - docker_settings.install
-
-    - name: Add user to Docker group
-      user:
-        name: "{{ item }}"
-        groups: docker
-        append: yes
-      loop: "{{ docker_settings.users_to_add_to_group }}"
-      when: docker_settings.install
-
-    - name: Enable and start Docker service
-      service:
-        name: docker
-        enabled: yes
-        state: started
-      when: docker_settings.install
+      when: is_fedora
 
     # Install Oh My Zsh for remote user
     - name: Get remote user home directory
@@ -142,12 +257,12 @@
       become: false
 
     # Enhanced security setup for remote machines
-    - name: Install UFW (Debian/Ubuntu)
+    - name: Install UFW (Ubuntu)
       apt:
         name: ufw
         state: present
       when: 
-        - ansible_facts['os_family'] == 'Debian'
+        - is_ubuntu
         - security_settings.ufw_enabled
 
     - name: Install firewalld (Fedora)
@@ -155,10 +270,10 @@
         name: firewalld
         state: present
       when: 
-        - ansible_facts['distribution'] == 'Fedora'
+        - is_fedora
         - security_settings.ufw_enabled
 
-    - name: Configure UFW (Debian/Ubuntu)
+    - name: Configure UFW (Ubuntu)
       block:
         - name: Allow SSH through UFW
           ufw:
@@ -169,7 +284,7 @@
           ufw:
             state: enabled
       when: 
-        - ansible_facts['os_family'] == 'Debian'
+        - is_ubuntu
         - security_settings.ufw_enabled
 
     - name: Configure firewalld (Fedora)
@@ -185,7 +300,7 @@
             permanent: yes
             state: enabled
       when: 
-        - ansible_facts['distribution'] == 'Fedora'
+        - is_fedora
         - security_settings.ufw_enabled
 
     # Configure SSH security
@@ -204,4 +319,4 @@
     - name: Restart SSH
       service:
         name: sshd
-        state: restarted 
+        state: restarted

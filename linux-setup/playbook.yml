@@ -15,6 +15,24 @@
       - vim
       - python3
       - python3-pip
+      - make
+      - gcc
+      - jq
+      - tree
+      - ripgrep
+      - fd-find
+      - bat
+      - fzf
+      - neofetch
+      - default-jdk
+      - golang
+    python_packages:
+      - virtualenv
+      - flake8
+      - black
+      - pylint
+    vscode_packages:
+      - code
 
   tasks:
     # Update package managers
@@ -127,6 +145,26 @@
         name: virtualenv
         state: present
       become: false
+
+    # Install Python packages
+    - name: Install Python packages
+      pip:
+        name: "{{ python_packages }}"
+        state: present
+      become: false
+
+    # Install VSCode
+    - name: Install VSCode (Debian/Ubuntu)
+      apt:
+        name: "{{ vscode_packages }}"
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install VSCode (Fedora)
+      dnf:
+        name: "{{ vscode_packages }}"
+        state: present
+      when: ansible_facts['distribution'] == 'Fedora'
 
     # Basic security setup
     - name: Install UFW (Debian/Ubuntu)

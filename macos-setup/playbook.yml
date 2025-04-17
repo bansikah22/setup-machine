@@ -16,10 +16,27 @@
       - vim
       - python3
       - node  # This installs both Node.js and npm
+      - make
+      - gcc
+      - jq
+      - tree
+      - ripgrep
+      - fd
+      - bat
+      - fzf
+      - neofetch
+      - openjdk
+      - go
+      - rust
     homebrew_cask_packages:
       - docker  # Docker Desktop for Mac
       - visual-studio-code  # VS Code
       - iterm2  # Better terminal emulator
+    python_packages:
+      - virtualenv
+      - flake8
+      - black
+      - pylint
 
   tasks:
     # Homebrew setup
@@ -84,6 +101,13 @@
         state: present
         update_homebrew: no  # Skip updating again
 
+    # Install Python packages
+    - name: Install Python packages
+      pip:
+        name: "{{ python_packages }}"
+        state: present
+        extra_args: --user
+
     # Oh My Zsh setup
     - name: Check if Oh My Zsh is installed
       stat:
@@ -114,13 +138,6 @@
         regexp: '^ZSH_THEME='
         line: 'ZSH_THEME="powerlevel10k/powerlevel10k"'
         create: yes
-
-    # Python setup
-    - name: Install Python virtualenv
-      pip:
-        name: virtualenv
-        state: present
-        extra_args: --user
 
     # macOS settings
     - name: Configure macOS settings

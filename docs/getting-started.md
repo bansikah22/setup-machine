@@ -18,32 +18,55 @@ pip install ansible
 
 ## Local Machine Setup
 
-The local machine setup will configure your development environment with:
+### macOS Setup
+
+The macOS setup will configure your development environment with:
+- Common development tools (git, zsh, curl, etc.)
+- Homebrew packages
+- Node.js and npm
+- Docker Desktop
+- Visual Studio Code
+- iTerm2
+- Oh My Zsh with Powerlevel10k theme
+- Python packages
+- macOS system preferences
+
+To run the macOS setup:
+```bash
+cd macos-setup
+ansible-playbook -i inventory.yml playbook.yml
+```
+
+### Linux Setup
+
+The Linux setup will configure your development environment with:
 - Common development tools (git, zsh, curl, etc.)
 - Node.js and npm
 - Docker
 - Oh My Zsh with Powerlevel10k theme
-- Python virtualenv
-- UFW firewall
+- Python tools
+- Basic security setup
 
-To run the local setup:
+To run the Linux setup:
 ```bash
-ansible-playbook -i inventory/local-machine.ini playbooks/local-machine.yml
+cd linux-setup
+ansible-playbook -i inventory.yml playbook.yml
 ```
 
-## Remote Machine Setup
+## Remote Linux Setup
 
-The remote machine setup will configure a server with:
+The remote Linux setup will configure a server with:
 - Common development tools
 - Node.js and npm
 - Docker
 - Oh My Zsh with Powerlevel10k theme
-- Python virtualenv
-- UFW firewall
+- Python tools
+- Enhanced security for remote servers
 
-To run the remote setup:
+To run the remote Linux setup:
 ```bash
-ansible-playbook -i inventory/remote-machine.ini playbooks/remote-machine.yml
+cd linux-remote-setup
+ansible-playbook -i inventory.yml playbook.yml
 ```
 
 ## SSH Setup for Remote Machine
@@ -80,9 +103,3 @@ Common issues and solutions:
    - Verify SSH keys
    - Check firewall settings
    - Confirm network connectivity
-
-## Next Steps
-
-- Review the [Advanced Configuration](advanced-configuration.md) guide
-- Check out the [Best Practices](best-practices.md) document
-- Explore the [API Documentation](api-documentation.md) 
